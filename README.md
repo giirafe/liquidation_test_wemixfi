@@ -1,13 +1,17 @@
-# Sample Hardhat Project
+This project demonstrates a Liquidation Case in Wemix Fi service.
+It is implemented by forking certain blocks before liquidation on Wemix network.
+Liquidation function 'liquidateBorrow()' is implemented on CErc20.sol which inherits Initializable, CToken, CErc20Interface.
+To get information about certain user's 'liquid-ability' approach /contracts/views/WemixfiLendingView.sol's 'getLiquidationInfo'. This function returns LiquidationInfo wihch has a structure of below.
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
-
-Try running some of the following tasks:
-
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat run scripts/deploy.js
+```basic
+LiquidationInfo(address payable account)
+├── isLiquidateTarget: bool
+└── tokenInfo: TokenInfo[]
+    ├── underlyingTokenAddr: address
+    ├── cTokenAddr: address
+    ├── isCollateralAsset: bool
+    ├── isBorrowAsset: bool
+    ├── price: uint256
+    ├── repayAmountMax: uint256
+    └── collateralUnderlyingTokenAmount: uint256
 ```
