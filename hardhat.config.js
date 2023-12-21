@@ -8,7 +8,7 @@ module.exports = {
       // loggingEnabled: true,
       forking : {
         url: "https://api.wemix.com",
-        blockNumber:36132586 // Liquidation of interest occured in 36132584
+        blockNumber:36132584 // Liquidation of interest occured in 36132584
       },
       blockGasLimit : 70000000,
       allowUnlimitedContractSize: true,

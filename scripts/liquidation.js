@@ -1,7 +1,7 @@
 // Import ethers from Hardhat package
 const { ethers } = require("hardhat");
 // Import custom logging tool from scriptTool.js
-const { logSuccess, logError } = require('./scriptTool');
+const { logSuccess, logError,startNewScript } = require('./scriptTool');
 
 // Import the ABI using require
 const cwemixJson = require('../contractABI/CWemix.json');
@@ -11,9 +11,11 @@ const wemixfiLendingViewJson = require('../contractABI/WemixfiLendingView.json')
 async function main() {
     // Connect to the contract using its address and ABI
     const cwemixContractAddress = "0x34b9B18fDBE2aBC6DfB41A7f6d39B5E511ce3e23";
+    const cwemixDollarContractAddress = "0x04dC57f9675e9a620f2566eAE20d44ACDa890802";
     const wemixfiLendingViewContractAddress = "0xE58955bBD9E05A47941C6b3eC05Bc8f60560e798";
     const liquidatorAddress = "0x07454C4d1d0A71F49926D68804CB6f65F2607723" // liquidatorAddress of Block : 36139991
     const liquidatedBorrowerAddress = "0x03C49C1907d2791c9096a109bc3D6720d4CcE825";
+    const wemixRepayAmount = 0.03;
 
     const provider = ethers.provider;
     const cwemixContractInstance = new ethers.Contract(cwemixContractAddress, cwemixJson.abi, provider);
@@ -22,9 +24,11 @@ async function main() {
     const [user1, user2, user3] = await ethers.getSigners();
 
     const impersonatedLiquidator = await ethers.getImpersonatedSigner(liquidatorAddress);
+    const impersonatedBorrower = await ethers.getImpersonatedSigner(liquidatedBorrowerAddress);
 
     // Example: Reading data from the contract
     try {
+        startNewScript();
         const bbsData = await cwemixContractInstance.borrowBalanceStored(user1); // public function인 borrowBalanceStored()를 통해 Contract 연결된지 확인
         logSuccess("borrowBalanceStored in cwemix : ", bbsData)
         const accrualBlockNumber = await cwemixContractInstance.accrualBlockNumber;
@@ -35,6 +39,7 @@ async function main() {
     }
 
     try {
+        startNewScript();
         const cwemixInfo = await wemixfiLendingViewContractInstance.getCTokenInfo(cwemixContractAddress); 
         logSuccess("cwemixInfo from Lending View Contract : " , cwemixInfo)
 
@@ -48,6 +53,19 @@ async function main() {
     }
 
     // Liquidate Attempt, reenacting Liquidation using impersonatedLiquidator
+    try {
+        startNewScript();
+        // Execute the liquidateBorrow function with the impersonated liquidator
+        const liquidateBorrowResult = await cwemixContractInstance.connect(impersonatedLiquidator).liquidateBorrow(
+            liquidatedBorrowerAddress,
+            wemixRepayAmount,
+            cwemixDollarContractAddress
+        );
+        await liquidateBorrowResult.wait();  // Wait for the transaction to be mined
+        logSuccess("Liquidation Result: ", liquidateBorrowResult);
+    } catch (error) {
+        logError("Error attempting liquidation: ", error);
+    }
 
     // // Example: Sending a transaction to the contract
     // // Make sure you have a signer (account) with some test ETH for transactions
