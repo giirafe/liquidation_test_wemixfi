@@ -45,8 +45,9 @@ async function main() {
 
         // Next step, getLiquidationInfo(account address)
         const liqInfo = await wemixfiLendingViewContractInstance.getLiquidationInfo(liquidatedBorrowerAddress);
-        logSuccess("liqInfo from Lending View Contract : " , liqInfo)
         logSuccess("isLiquidateTarget : " , liqInfo.isLiquidateTarget)
+        logSuccess("isLiquidateTarget Token idx 0 : " , liqInfo.tokenInfo[0])
+        logSuccess("repayAmountMax : " , liqInfo.tokenInfo[0].repayAmountMax)
         
     } catch (error) {
         console.error("Error reading data from the 'WemixFi Lending View' contract :", error);
@@ -58,28 +59,37 @@ async function main() {
 
         // Next step, getLiquidationInfo(account address)
         var liqInfo = await wemixfiLendingViewContractInstance.getLiquidationInfo(liquidatedBorrowerAddress);
-        logSuccess("liqInfo from Lending View Contract : " , liqInfo)
+        // logSuccess("liqInfo from Lending View Contract : " , liqInfo)
         logSuccess("isLiquidateTarget : " , liqInfo.isLiquidateTarget)
+        logSuccess("isLiquidateTarget Token idx 0 : " , liqInfo.tokenInfo[0])
+        logSuccess("Token idx 0 repayAmountMax : " , liqInfo.tokenInfo[0].repayAmountMax)
+        logSuccess("Token idx 0 Oracle Price : " , liqInfo.tokenInfo[0].price)
+        const liquidatorCost =  liqInfo.tokenInfo[0].repayAmountMax * liqInfo.tokenInfo[0].price
+        logSuccess("Estimated Cost for liquidator on Max Repay", liquidatorCost)
+        
+        // Case1 : Liquidating with Max Repay Amount
+        const maxWemixRepayAmountBN = liqInfo.tokenInfo[0].repayAmountMax; // No need to adjust units since the value came from Smart Contract
 
+        // Case2 : Liquidating with Manual Repay Amount
         // Convert wemixRepayAmount to a BigNumber
-        const wemixRepayAmountBN = ethers.parseUnits(wemixRepayAmount.toString(), 'ether'); // Adjust 'ether' for the correct number of decimals if needed
+        const manualWemixRepayAmountBN = ethers.parseUnits(wemixRepayAmount.toString(), 'ether'); // Adjust 'ether' for the correct number of decimals if needed
 
         // Execute the liquidateBorrow function with the impersonated liquidator
         const liquidateBorrowResult = await cwemixContractInstance.connect(impersonatedLiquidator).liquidateBorrow(
             liquidatedBorrowerAddress,
             cwemixDollarContractAddress,
             {
-                value: wemixRepayAmountBN // Set the transaction value here
+                value: maxWemixRepayAmountBN // Set the transaction value here
             }
         );
         await liquidateBorrowResult.wait();  // Wait for the transaction to be mined
-        logSuccess("Liquidation Result: ", liquidateBorrowResult);
+        logSuccess("Liquidation Result : ", liquidateBorrowResult);
 
         liqInfo =  await wemixfiLendingViewContractInstance.getLiquidationInfo(liquidatedBorrowerAddress);
         logSuccess("isLiquidateTarget : " , liqInfo.isLiquidateTarget)
 
     } catch (error) {
-        logError("Error attempting liquidation: ", error);
+        logError("Error attempting liquidation : ", error);
     }
 
     // // Example: Sending a transaction to the contract
