@@ -55,14 +55,29 @@ async function main() {
     // Liquidate Attempt, reenacting Liquidation using impersonatedLiquidator
     try {
         startNewScript();
+
+        // Next step, getLiquidationInfo(account address)
+        var liqInfo = await wemixfiLendingViewContractInstance.getLiquidationInfo(liquidatedBorrowerAddress);
+        logSuccess("liqInfo from Lending View Contract : " , liqInfo)
+        logSuccess("isLiquidateTarget : " , liqInfo.isLiquidateTarget)
+
+        // Convert wemixRepayAmount to a BigNumber
+        const wemixRepayAmountBN = ethers.parseUnits(wemixRepayAmount.toString(), 'ether'); // Adjust 'ether' for the correct number of decimals if needed
+
         // Execute the liquidateBorrow function with the impersonated liquidator
         const liquidateBorrowResult = await cwemixContractInstance.connect(impersonatedLiquidator).liquidateBorrow(
             liquidatedBorrowerAddress,
-            wemixRepayAmount,
-            cwemixDollarContractAddress
+            cwemixDollarContractAddress,
+            {
+                value: wemixRepayAmountBN // Set the transaction value here
+            }
         );
         await liquidateBorrowResult.wait();  // Wait for the transaction to be mined
         logSuccess("Liquidation Result: ", liquidateBorrowResult);
+
+        liqInfo =  await wemixfiLendingViewContractInstance.getLiquidationInfo(liquidatedBorrowerAddress);
+        logSuccess("isLiquidateTarget : " , liqInfo.isLiquidateTarget)
+
     } catch (error) {
         logError("Error attempting liquidation: ", error);
     }
