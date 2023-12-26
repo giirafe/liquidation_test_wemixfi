@@ -5,6 +5,7 @@ const { logSuccess, logError,startNewScript } = require('./scriptTool');
 
 // Import the ABI using require
 const cwemixJson = require('../contractABI/CWemix.json');
+const cwemixDollarJson = require('../contractABI/CWemixDollar.json');
 const wemixfiLendingViewJson = require('../contractABI/WemixfiLendingView.json');
 
 
@@ -19,16 +20,31 @@ async function main() {
 
     const provider = ethers.provider;
     const cwemixContractInstance = new ethers.Contract(cwemixContractAddress, cwemixJson.abi, provider);
+    const cwemixDollarContractInstance = new ethers.Contract(cwemixDollarContractAddress,cwemixDollarJson.abi,provider )
     const wemixfiLendingViewContractInstance = new ethers.Contract(wemixfiLendingViewContractAddress, wemixfiLendingViewJson.abi, provider);
 
+    // Set up Users
     const [user1, user2, user3] = await ethers.getSigners();
 
     const impersonatedLiquidator = await ethers.getImpersonatedSigner(liquidatorAddress);
     const impersonatedBorrower = await ethers.getImpersonatedSigner(liquidatedBorrowerAddress);
 
+    // Set up an event filter for the LiquidateBorrow event
+    // const liquidateBorrowEventFilter = cwemixContractInstance.filters.LiquidateBorrow();
+
+    // Function to handle the LiquidateBorrow event
+    function handleLiquidateBorrowEvent(liquidator, borrower, actualRepayAmount, cTokenCollateral, seizeTokens, underlying) {
+        console.log(`LiquidateBorrow Event: Liquidator: ${liquidator}, Borrower: ${borrower}, Repay Amount: ${actualRepayAmount}, Collateral: ${cTokenCollateral}, Seize Tokens: ${seizeTokens}, Underlying: ${underlying}`);
+        // logSuccess(`LiquidateBorrow Event: Liquidator: ${liquidator}, Borrower: ${borrower}, Repay Amount: ${actualRepayAmount}, Collateral: ${cTokenCollateral}, Seize Tokens: ${seizeTokens}, Underlying: ${underlying}`);
+    }
+
+    // Listen for the LiquidateBorrow event
+    cwemixContractInstance.on("LiquidateBorrow", handleLiquidateBorrowEvent);
+
+
     // Example: Reading data from the contract
     try {
-        startNewScript();
+        startNewScript("Reading Data from the contract");
         const bbsData = await cwemixContractInstance.borrowBalanceStored(user1); // public function인 borrowBalanceStored()를 통해 Contract 연결된지 확인
         logSuccess("borrowBalanceStored in cwemix : ", bbsData)
         const accrualBlockNumber = await cwemixContractInstance.accrualBlockNumber;
@@ -39,7 +55,7 @@ async function main() {
     }
 
     try {
-        startNewScript();
+        startNewScript("Check liquidation target of certain user");
         const cwemixInfo = await wemixfiLendingViewContractInstance.getCTokenInfo(cwemixContractAddress); 
         logSuccess("cwemixInfo from Lending View Contract : " , cwemixInfo)
 
@@ -55,15 +71,17 @@ async function main() {
 
     // Liquidate Attempt, reenacting Liquidation using impersonatedLiquidator
     try {
-        startNewScript();
+        startNewScript("Actual liquidation proceeding");
+        var liquidatorWemixDollarBalance = await cwemixDollarContractInstance.balanceOf(liquidatorAddress)
+        logSuccess("Liquidator Wemix Dollar balance BEFORE liquidation : ",liquidatorWemixDollarBalance)
 
         // Next step, getLiquidationInfo(account address)
         var liqInfo = await wemixfiLendingViewContractInstance.getLiquidationInfo(liquidatedBorrowerAddress);
         // logSuccess("liqInfo from Lending View Contract : " , liqInfo)
         logSuccess("isLiquidateTarget : " , liqInfo.isLiquidateTarget)
-        logSuccess("isLiquidateTarget Token idx 0 : " , liqInfo.tokenInfo[0])
-        logSuccess("Token idx 0 repayAmountMax : " , liqInfo.tokenInfo[0].repayAmountMax)
+        logSuccess("isLiquidateTarget of Token idx 0 : " , liqInfo.tokenInfo[0])
         logSuccess("Token idx 0 Oracle Price : " , liqInfo.tokenInfo[0].price)
+        logSuccess("Token idx 0 repayAmountMax : " , liqInfo.tokenInfo[0].repayAmountMax)
         const liquidatorCost =  liqInfo.tokenInfo[0].repayAmountMax * liqInfo.tokenInfo[0].price
         logSuccess("Estimated Cost for liquidator on Max Repay", liquidatorCost)
         
@@ -86,7 +104,10 @@ async function main() {
         logSuccess("Liquidation Result : ", liquidateBorrowResult);
 
         liqInfo =  await wemixfiLendingViewContractInstance.getLiquidationInfo(liquidatedBorrowerAddress);
-        logSuccess("isLiquidateTarget : " , liqInfo.isLiquidateTarget)
+        logSuccess("Checking Liquidation Availability of same User Address isLiquidateTarget : " , liqInfo.isLiquidateTarget)
+
+        liquidatorWemixDollarBalance = await cwemixDollarContractInstance.balanceOf(liquidatorAddress)
+        logSuccess("Liquidator Wemix Dollar balance AFTER liquidation : ",liquidatorWemixDollarBalance)
 
     } catch (error) {
         logError("Error attempting liquidation : ", error);
@@ -102,6 +123,9 @@ async function main() {
     // } catch (error) {
     //     console.error("Error sending transaction to the contract:", error);
     // }
+
+    // Remove all listeners after test scripts
+    cwemixContractInstance.removeAllListeners()
 }
 
 main().catch((error) => {

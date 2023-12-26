@@ -5,23 +5,24 @@ const COLORS = {
     GREEN: "\x1b[32m",
     YELLOW: "\x1b[33m",
     BLUE: "\x1b[34m",
+    MAGENTA : "\x1b[35m",
     ORANGE: "\x1b[38;5;208m"
 };
 
 function logSuccess(...messages) {
-    logWithColor(COLORS.GREEN,messages)
+    logWithColor(COLORS.MAGENTA,messages)
 }
 
 function logError(...messages) {
     logWithColor(COLORS.RED,messages)
 }
 
-function startNewScript() {
-    logWithColor(COLORS.ORANGE, "=======================")
+function startNewScript(message) {
+    logWithColor(COLORS.ORANGE, "=======================",message,"=======================")
 }
 
-function logWithColor(color, message) {
-    console.log(color, message, COLORS.RESET);
+function logWithColor(color, ...messages) {
+    console.log(color, ...messages, COLORS.RESET);
 }
 
 module.exports = {
